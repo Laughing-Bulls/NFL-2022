@@ -4,9 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 #from sklearn.preprocessing import MinMaxScaler
-#import sklearn
 #from sklearn.compose import ColumnTransformer
-#from sklearn import preprocessing
 from sklearn.preprocessing import Normalizer, OneHotEncoder
 
 

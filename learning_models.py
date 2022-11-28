@@ -10,21 +10,17 @@ from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import SelectPercentile
 from sklearn.feature_selection import f_regression
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
-from sklearn.linear_model import SGDClassifier
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingClassifier
-
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics  import f1_score, accuracy_score
 from sklearn.metrics import explained_variance_score
 
 
 def read_processed_data_file():
+    # Read pre-processed data file into a dataframe
     path = './data/'
     name = 'processed-nfl-data.csv'
     df = pd.read_csv(path + name, index_col=0)
@@ -32,31 +28,24 @@ def read_processed_data_file():
 
 
 def model_choice():
-    choice = input("Select a model number (1,2,3,4,5,6,7,8): ")  # user can choose ML model
+    # User chooses which ML model to run
+    choice = input("Select a model number (1=SVM ,2=Naive Bayes, 3=Decision Tree, 4=Random Forest): ")
     model_name = "quit"
     if choice == '1':
-        model_name = "Logistic Regression"
-    if choice == '2':
         model_name = "SVM"
-    if choice == '3':
+    if choice == '2':
         model_name = "Naive Bayes"
-    if choice == '4':
-        model_name = "Gradient Descent"
-    if choice == '5':
-        model_name = "KNN (k-nearest neighbor)"
-    if choice == '6':
+    if choice == '3':
         model_name = "Decision Tree"
-    if choice == '7':
+    if choice == '4':
         model_name = "Random Forest"
-    if choice == '8':
-        model_name = "Gradient Boosting"
 
     print("You chose: ", choice, model_name)
     return model_name
 
 
 def construct_model():
-    # parse data and run selected machine learning model
+    # Parse data and run selected machine learning model
     input_data = read_processed_data_file()     # get the processed data
 
     X_train, X_test, y_train, y_test = split_data(input_data)   # split into training and test sets
@@ -70,22 +59,14 @@ def construct_model():
 
 def run_model(model_name, X_train, X_test, y_train, y_test):
     # Train a model with selected machine learning algorithm
-    if model_name == "Logistic Regression":
-        model = LogisticRegression()
     if model_name == "SVM":
         model = SVC()
     if model_name == "Naive Bayes":
         model = GaussianNB()
-    if model_name == "Gradient Descent":
-        model = SGDClassifier()
-    if model_name == "KNN (k-nearest neighbor)":
-        model = KNeighborsClassifier()
     if model_name == "Decision Tree":
         model = DecisionTreeClassifier()
     if model_name == "Random Forest":
         model = RandomForestClassifier()
-    if model_name == "Gradient Boosting":
-        model = GradientBoostingClassifier()
 
     starttime = datetime.now()
     model.fit(X_train, y_train)
@@ -114,17 +95,15 @@ def split_data(df):
     #outcomes = ['C', 'I', 'S', 'R', 'IN']
     #y_array = lb.fit_transform(y_raw)
     #y = pd.DataFrame(y_array, columns=[outcomes[i] for i in range(len(outcomes))])
-    play_map = {"C": 0, "I": 0, "S": 0, "IN": 0, "R": 1}
-    y = y_raw.replace(play_map)
-    print(type(y))
-    print(y.head())
+
+    play_map = {"C": 1, "I": 0, "S": 0, "IN": 0, "R": 0}
+    y = y_raw.replace(play_map)  # Make categories binary
+    print("Play Counts: ")
     print(y.value_counts())
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=0)
-
-    print("ML_Models: Data successfully split.")
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=0) # split x,y
+    print("split_data: Data successfully split.")
     print("X_train:", X_train.shape, "X_test", X_test.shape, "y_train", y_train.shape, "y_test", y_test.shape)
-    print(y_train.head())
 
     return X_train, X_test, y_train, y_test
 
