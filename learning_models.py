@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pickle
 from datetime import datetime
+from operator import add
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, LabelBinarizer
 from sklearn.impute import KNNImputer
 from sklearn.feature_selection import SelectKBest
@@ -44,20 +45,36 @@ def model_choice():
     return model_name
 
 
-def construct_model():
+def construct_model(kfold_choice):
     # Parse data and run selected machine learning model
     input_data = read_processed_data_file()     # get the processed data
 
-    X_train, X_test, y_train, y_test = split_data(input_data)   # split into training and test sets
+    if kfold_choice == "y": # if using 10-fold cross validation
+        num_runs = 10  # Train and test 10 times
+        split = 0.10    # 10% of data used as test
+    else:
+        num_runs = 1    # Train and test once
+        split = 0.20    # otherwise 20% of data used as test
 
     choice = model_choice()     # choose model type
     while choice != 'quit':
-        model = run_model(choice, X_train, X_test, y_train, y_test)     # train selected model
+        sums = [0,0]
+        for i in range(0, num_runs):
+            print(f"Run number: {i+1}")
+            X_train, X_test, y_train, y_test = split_data(input_data, split)  # split into training and test sets
+            scores = run_model(choice, kfold_choice, X_train, X_test, y_train, y_test)     # train selected model
+            sums = list(map(add, sums, scores))
+
+        if kfold_choice == "y": # if using 10-fold cross validation
+            print(f"Average of {num_runs} Accuracy Scores: {sums[0]/num_runs}")
+            print(f"Average of {num_runs} F1 Scores: {sums[1] / num_runs}")
+
         choice = model_choice()
+
     return True
 
 
-def run_model(model_name, X_train, X_test, y_train, y_test):
+def run_model(model_name, kfold_choice, X_train, X_test, y_train, y_test):
     # Train a model with selected machine learning algorithm
     if model_name == "SVM":
         model = SVC()
@@ -70,23 +87,28 @@ def run_model(model_name, X_train, X_test, y_train, y_test):
 
     starttime = datetime.now()
     model.fit(X_train, y_train)
-    print("run_model: ", model_name, " model built.")
-    endtime = datetime.now()
-    print("Run time to construct model: ", endtime - starttime)
-    yes = input("Perfect this model? (y/n)")
-    if yes == "y":
-        perfect_model(model_name, model, X_train, y_train)
-    print(model.get_params())
-    y_train_pred = model.predict(X_train)
-    print("Explained Variance Score (training): ", explained_variance_score(y_train, y_train_pred))
+    if kfold_choice != "y":
+        print("run_model: ", model_name, " model built.")
+        endtime = datetime.now()
+        print("Run time to construct model: ", endtime - starttime)
+
+        yes = input("Perfect this model? (y/n)")
+        if yes == "y":
+            perfect_model(model_name, model, X_train, y_train)
+        print(model.get_params())
+        y_train_pred = model.predict(X_train)
+        print("Explained Variance Score (training): ", explained_variance_score(y_train, y_train_pred))
+
+        save_model(model_name, model)
+
     y_pred = model.predict(X_test)
-    analyze_model(y_test, y_pred)
-    save_model(model_name, model)
-    return True
+    scores = analyze_model(y_test, y_pred)
+
+    return scores
 
 
-def split_data(df):
-    # split data into training and test data (80% / 20%)
+def split_data(df, test_size):
+    # split data into training and test data (80% / 20% unless 10-fold is selected)
     y_raw = df['passResult']
     x_raw = df.drop(labels=['passResult'], axis=1)
     X = impute_values(x_raw)  # impute values that are NaN
@@ -101,7 +123,7 @@ def split_data(df):
     print("Play Counts: ")
     print(y.value_counts())
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=0) # split x,y
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=None)
     print("split_data: Data successfully split.")
     print("X_train:", X_train.shape, "X_test", X_test.shape, "y_train", y_train.shape, "y_test", y_test.shape)
 
@@ -151,8 +173,9 @@ def perfect_model(model_name, model, X_train, y_train):
 
 def analyze_model(y_test, y_pred):
     # tests classification models
-    print("Accuracy score: ", accuracy_score(y_test, y_pred))
-    print("F1 score: ", f1_score(y_test, y_pred))
+    accuracy = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    print(f"Accuracy score: {accuracy}, F1 score: {f1}")
 
     #print("Model score: ", model.score(X_test, y_test))
     #print("R-squared: ", r2_score(y_test, y_pred))
@@ -160,7 +183,7 @@ def analyze_model(y_test, y_pred):
     #print("Root Mean Squared Error: ", np.sqrt(mean_squared_error(y_test, y_pred)))
     #print("Explained Variance Score (test): ", explained_variance_score(y_test, y_pred))
     #runplot(y_test, y_pred)
-    return True
+    return [accuracy, f1]
 
 
 def runplot(y_test, y_pred):

@@ -15,9 +15,10 @@ if __name__ == '__main__':
 
     training_choice = input("Do you want to train a new model? (y/n) ")  # train model on data?
     if training_choice == "y":
-        construct_model()
+        kfold_choice = input("Do you want to use 10-fold cross validation? (y/n) ")  # use cross validation?
+        construct_model(kfold_choice)
 
-    output_choice = input("Do you want to apply the model to data? (y/n) ")  # apply the saved model?
+    output_choice = input("Do you want to apply a model to data? (y/n) ")  # apply a saved model?
     if output_choice == "y":
         predict_outcome()
 
