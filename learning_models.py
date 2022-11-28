@@ -10,18 +10,17 @@ from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import SelectPercentile
 from sklearn.feature_selection import f_regression
 from sklearn.model_selection import train_test_split
-from sklearn.svm import LinearSVR
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import Ridge
-from sklearn.linear_model import Lasso
-from sklearn.linear_model import SGDRegressor
-from sklearn.linear_model import BayesianRidge
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn import tree
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import SGDClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
+from sklearn.metrics  import f1_score, accuracy_score
 from sklearn.metrics import explained_variance_score
 
 
@@ -33,28 +32,25 @@ def read_processed_data_file():
 
 
 def model_choice():
-    choice = input("Select a model number (1,2,3,4,5,6,7,8,9,10): ")  # user can choose ML model
+    choice = input("Select a model number (1,2,3,4,5,6,7,8): ")  # user can choose ML model
     model_name = "quit"
     if choice == '1':
-        model_name = "Linear Regression"
+        model_name = "Logistic Regression"
     if choice == '2':
-        model_name = "Lasso Regression"
+        model_name = "SVM"
     if choice == '3':
-        model_name = "Stochastic Gradient Descent"
+        model_name = "Naive Bayes"
     if choice == '4':
-        model_name = "Baysian Ridge Regression"
+        model_name = "Gradient Descent"
     if choice == '5':
-        model_name = "Ridge Regression"
+        model_name = "KNN (k-nearest neighbor)"
     if choice == '6':
-        model_name = "Linear SVR"
+        model_name = "Decision Tree"
     if choice == '7':
-        model_name = "KNN Regression"
+        model_name = "Random Forest"
     if choice == '8':
-        model_name = "Decision Tree Regression"
-    if choice == '9':
-        model_name = "Random Forest Regression"
-    if choice == '10':
-        model_name = "Gradient Boosting Regression"
+        model_name = "Gradient Boosting"
+
     print("You chose: ", choice, model_name)
     return model_name
 
@@ -74,34 +70,26 @@ def construct_model():
 
 def run_model(model_name, X_train, X_test, y_train, y_test):
     # Train a model with selected machine learning algorithm
-    weights = True
-    if model_name == "Linear Regression":
-        model = LinearRegression()
-    if model_name == "Lasso Regression":
-        model = Lasso(alpha=1.0)
-    if model_name == "Stochastic Gradient Descent":  #KEEP
-        model = SGDRegressor(max_iter=1000, tol=1e-3)
-    if model_name == "Baysian Ridge Regression":
-        model = BayesianRidge()
-    if model_name == "Ridge Regression":
-        model = Ridge(alpha=0.5, tol=0.01)
-    if model_name == "Linear SVR":
-        model = LinearSVR()
-    if model_name == "KNN Regression":
-        model = KNeighborsRegressor()
-    if model_name == "Decision Tree Regression":
-        model = tree.DecisionTreeRegressor(min_samples_leaf=2, splitter='random')
-        weights = False
-    if model_name == "Random Forest Regression":
-        model = RandomForestRegressor()
-        weights = False
-    if model_name == "Gradient Boosting Regression":
-        model = GradientBoostingRegressor()
-        weights = False
+    if model_name == "Logistic Regression":
+        model = LogisticRegression()
+    if model_name == "SVM":
+        model = SVC()
+    if model_name == "Naive Bayes":
+        model = GaussianNB()
+    if model_name == "Gradient Descent":
+        model = SGDClassifier()
+    if model_name == "KNN (k-nearest neighbor)":
+        model = KNeighborsClassifier()
+    if model_name == "Decision Tree":
+        model = DecisionTreeClassifier()
+    if model_name == "Random Forest":
+        model = RandomForestClassifier()
+    if model_name == "Gradient Boosting":
+        model = GradientBoostingClassifier()
 
     starttime = datetime.now()
     model.fit(X_train, y_train)
-    print("ML_Models: ", model_name, " model built.")
+    print("run_model: ", model_name, " model built.")
     endtime = datetime.now()
     print("Run time to construct model: ", endtime - starttime)
     yes = input("Perfect this model? (y/n)")
@@ -112,7 +100,7 @@ def run_model(model_name, X_train, X_test, y_train, y_test):
     print("Explained Variance Score (training): ", explained_variance_score(y_train, y_train_pred))
     y_pred = model.predict(X_test)
     analyze_model(y_test, y_pred)
-    save_model(model_name, model, weights)
+    save_model(model_name, model)
     return True
 
 
@@ -122,18 +110,17 @@ def split_data(df):
     x_raw = df.drop(labels=['passResult'], axis=1)
     X = impute_values(x_raw)  # impute values that are NaN
 
-    lb = LabelBinarizer()
-    cats = ['C', 'I', 'S', 'R', 'IN']
-    y_array = lb.fit_transform(y_raw)
-    y = pd.DataFrame(y_array, columns=[cats[i] for i in range(len(cats))])
+    #lb = LabelBinarizer()
+    #outcomes = ['C', 'I', 'S', 'R', 'IN']
+    #y_array = lb.fit_transform(y_raw)
+    #y = pd.DataFrame(y_array, columns=[outcomes[i] for i in range(len(outcomes))])
+    play_map = {"C": 0, "I": 0, "S": 0, "IN": 0, "R": 1}
+    y = y_raw.replace(play_map)
     print(type(y))
     print(y.head())
+    print(y.value_counts())
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=0)
-    #X_train = X.iloc[33:263351]
-    #X_test = X.iloc[263382:350898]
-    #y_train = y.iloc[33:263351]
-    #y_test = y.iloc[263382:350898]
 
     print("ML_Models: Data successfully split.")
     print("X_train:", X_train.shape, "X_test", X_test.shape, "y_train", y_train.shape, "y_test", y_test.shape)
@@ -184,13 +171,16 @@ def perfect_model(model_name, model, X_train, y_train):
     return True
 
 def analyze_model(y_test, y_pred):
-    # tests regression models
+    # tests classification models
+    print("Accuracy score: ", accuracy_score(y_test, y_pred))
+    print("F1 score: ", f1_score(y_test, y_pred))
+
     #print("Model score: ", model.score(X_test, y_test))
-    print("R-squared: ", r2_score(y_test, y_pred))
-    print("Mean Absolute Error: ", mean_absolute_error(y_test, y_pred))
-    print("Root Mean Squared Error: ", np.sqrt(mean_squared_error(y_test, y_pred)))
-    print("Explained Variance Score (test): ", explained_variance_score(y_test, y_pred))
-    runplot(y_test, y_pred)
+    #print("R-squared: ", r2_score(y_test, y_pred))
+    #print("Mean Absolute Error: ", mean_absolute_error(y_test, y_pred))
+    #print("Root Mean Squared Error: ", np.sqrt(mean_squared_error(y_test, y_pred)))
+    #print("Explained Variance Score (test): ", explained_variance_score(y_test, y_pred))
+    #runplot(y_test, y_pred)
     return True
 
 
@@ -205,16 +195,11 @@ def runplot(y_test, y_pred):
     return True
 
 
-def save_model(choice, model, weights):
+def save_model(choice, model):
     path = './model/'
-    filename = "learning_model.sav"
-    parameter_filename = "parameters.csv"
+    filename = choice+"_saved_model.sav"
     yes = input("Save this model? (y/n)")
     if yes == "y":
         pickle.dump(model, open(path + filename, 'wb'))
-        print(choice, " : Model has been saved as final_model.sav")
-        if weights:
-            model_weights = model.coef_
-            np.savetxt(path + parameter_filename, model_weights, delimiter=',')
-            print("Model weights/coefficients have been saved as parameters.csv")
+        print(choice, " : Model has been saved as saved_model.sav")
     return True
