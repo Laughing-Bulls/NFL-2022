@@ -2,9 +2,7 @@
 import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
-#from sklearn.preprocessing import MinMaxScaler
-#from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import Normalizer, OneHotEncoder
 
 
@@ -27,28 +25,21 @@ def write_data(df):
 def prepare_input():
     # Calls functions to read, process and transform raw data, and save it as csv
     raw_data = read_data()
-    print("transform_data: Raw data: ")
-    print(raw_data.head())  # Print raw data
-    print(raw_data.shape)
+    visualize_data(raw_data)
     play_input = transform(raw_data)    # Call function to transform the data
-    print("transform_data: The processed NFL game play inputs matrix: ")
-    visualize_data(play_input)
     write_data(play_input)
     return True
 
 
 def transform(df):
     # Transforms the raw data.
-    print('transform_data: The raw data headers are:')
-    print(df.columns)
     # df.drop(index=df.index[0:8000], inplace=True)  # make data set smaller for testing
     field_side = 1 - (df['defensiveTeam'] == df['yardlineSide'])  # 1 if not in defensive territory
     df['yardsToEndzone'] = abs(df['yardlineNumber'] - field_side * 100)  # modify feature for side of field
-
-    # df['firstHalf'] = (df['quarter'] < 3)   # adjust quarters to halves
+    df['firstHalf'] = (df['quarter'] < 3)   # adjust quarters to halves
     df['overtime'] = (df['quarter'] > 4)    # overtime feature
-    addTime = ((df['quarter'] == 1) | (df['quarter'] == 3))   # adjust game clock to time left in half
 
+    addTime = ((df['quarter'] == 1) | (df['quarter'] == 3))   # adjust game clock to time left in half
     time = df['gameClock']
     nums = time.str.partition(':')
     nums[0] = pd.to_numeric(nums[0])
@@ -63,43 +54,45 @@ def transform(df):
                     'foulNFLId2', 'foulName3', 'foulNFLId3', 'absoluteYardlineNumber'],
             axis=1, inplace=True)  # remove less relevant column
 
-    coded = label_code(df)  # function returns transformed array
+    scaled = scale_values(df)   # function returns min-max feature scaling on numerical values
+    print("transform: The transformed NFL play columns are: ")
+    print(df.columns)   # show transformed data headers
+    coded = label_code(scaled)  # function returns transformed array
 
-    # scaler = MinMaxScaler()  # do not scale
-    # coded[coded.columns] = scaler.fit_transform(coded[coded.columns])  # scale to numerical data 0:1
-    # print(coded.describe())
     return coded
 
 
+def scale_values(df):
+    # scale numerical data
+    scaler = MinMaxScaler()
+    #column_heads = ['down', 'yardsToGo', 'defendersInBox', 'yardsToEndzone', 'timeLeft', 'scoreDifference']
+    df[['down', 'yardsToGo', 'defendersInBox', 'yardsToEndzone', 'timeLeft', 'scoreDifference']] \
+        = pd.DataFrame(scaler.fit_transform(df[['down', 'yardsToGo', 'defendersInBox', 'yardsToEndzone',
+                                                'timeLeft', 'scoreDifference']]))
+    return df
+
+
 def label_code(df):
-    # transform categories (e.g., venues, teams) into categorical integers
-    # convert each category into its own column with value 0 or 1
+    # transform categories (e.g., venues, teams) into categorical integers with value 0 or 1
     coded = pd.get_dummies(data=df, columns=['offenseFormation', 'personnelO', 'personnelD',
                                              'dropBackType', 'pff_passCoverage', 'pff_passCoverageType'])
-    #ct = ColumnTransformer([('encode', OneHotEncoder(categories='auto'))], remainder='passthrough') # column transformation
-    #transformed = np.array(ct.fit_transform(df), dtype=np.str)
-    #transformed_df = pd.DataFrame(transformed) # convert back to dataframe
-    #le = preprocessing.LabelEncoder()
-    #encoded = df.apply(le.fit_transform)  # each unique category assigned an integer
-
-    #encode = OneHotEncoder(sparse=False)
-    #code = encode.fit_transform(df[['passResult', 'offenseFormation', 'personnelO', 'personnelD',
-    #                                'dropBackType', 'pff_passCoverage', 'pff_passCoverageType']])
-    #coded = pd.DataFrame(code)  # turn back into a dataframe
-
-    #enc.fit(encoded)
-    #transformed = enc.transform(encoded).toarray()
-    print(type(coded))
-    print('label_code: The shape of the transformed array is:', coded.shape)
+    print('label_code: The shape of the transformed dataframe is:', coded.shape)
     return coded
 
 
 def visualize_data(df):
+    # description and graphical representation of raw data
+    print("visuaize_data: Raw data: ")
+    print(df.head())  # describe raw data
     print(df.shape)
     print(df.describe(include='all'))
-    print(df.columns)
-    print(df.head())  # Print transformed data
-    df['passResult'].hist()
-    #df['passResult'].plot.hist()
-    plt.show()
+    print('visuaize_data: The raw data headers are:')
+    print(df.columns)   # show raw data headers
+    df['passResult'].hist(color="palevioletred", edgecolor="black")
+    plt.show()      # histogram of play outcomes
+    figures = plt.figure()
+    axis = figures.gca()
+    df[['down', 'defendersInBox', 'prePenaltyPlayResult',
+        'yardlineNumber']].hist(ax=axis, color="palevioletred", edgecolor="black")
+    plt.show()      # histograms of various input variables
     return True
