@@ -15,9 +15,11 @@ from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import KFold
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics  import f1_score, accuracy_score
 from sklearn.metrics import explained_variance_score
+from sklearn.metrics import classification_report
 
 
 def read_processed_data_file():
@@ -48,26 +50,35 @@ def model_choice():
 def construct_model(kfold_choice):
     # Parse data and run selected machine learning model
     input_data = read_processed_data_file()     # get the processed data
-
-    if kfold_choice == "y": # if using 10-fold cross validation
-        num_runs = 10  # Train and test 10 times
-        split = 0.10    # 10% of data used as test
-    else:
-        num_runs = 1    # Train and test once
-        split = 0.20    # otherwise 20% of data used as test
+    X, y = split_xy(input_data)  # split into training and test sets
 
     choice = model_choice()     # choose model type
     while choice != 'quit':
-        sums = [0,0]
-        for i in range(0, num_runs):
-            print(f"Run number: {i+1}")
-            X_train, X_test, y_train, y_test = split_data(input_data, split)  # split into training and test sets
-            scores = run_model(choice, kfold_choice, X_train, X_test, y_train, y_test)     # train selected model
-            sums = list(map(add, sums, scores))
 
-        if kfold_choice == "y": # if using 10-fold cross validation
-            print(f"Average of {num_runs} Accuracy Scores: {sums[0]/num_runs}")
-            print(f"Average of {num_runs} F1 Scores: {sums[1] / num_runs}")
+        if kfold_choice != "y":  # if not using 10-fold cross validation
+            split = 0.20  # 20% of data used as test, 80% used for training
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=split, random_state=None)
+            print("construct_model: Data successfully split.")
+            print("X_train:", X_train.shape, "X_test", X_test.shape, "y_train", y_train.shape, "y_test", y_test.shape)
+            scores = run_model(choice, kfold_choice, X_train, X_test, y_train, y_test)  # train selected model
+
+        else:  # if using 10-fold cross validation
+            folds = 10
+            k_fold = KFold(folds, shuffle=True)
+            count = 1
+            sums = [0, 0]
+            for train, test in k_fold.split(X, y):
+                print(f"Fold number: {count}")
+                X_train = X.iloc[train]
+                X_test = X.iloc[test]
+                y_train = y.iloc[train]
+                y_test = y.iloc[test]
+                scores = run_model(choice, kfold_choice, X_train, X_test, y_train, y_test) # train model
+                sums = list(map(add, sums, scores))
+                count += 1
+
+            print(f"Average of {folds} Accuracy Scores: {sums[0] / folds}")
+            print(f"Average of {folds} F1 Scores: {sums[1] / folds}")
 
         choice = model_choice()
 
@@ -102,18 +113,18 @@ def run_model(model_name, kfold_choice, X_train, X_test, y_train, y_test):
         save_model(model_name, model)
 
     y_pred = model.predict(X_test)
-    scores = analyze_model(y_test, y_pred)
+    scores = analyze_model(y_test, y_pred, kfold_choice)
 
     return scores
 
 
-def split_data(df, test_size):
-    # split data into training and test data (80% / 20% unless 10-fold is selected)
+def split_xy(df):
+    # split out classification (y) data
     y_raw = df['passResult']
     x_raw = df.drop(labels=['passResult'], axis=1)
     X = impute_values(x_raw)  # impute values that are NaN
 
-    #lb = LabelBinarizer()
+    #lb = LabelBinarizer()  NOT USED
     #outcomes = ['C', 'I', 'S', 'R', 'IN']
     #y_array = lb.fit_transform(y_raw)
     #y = pd.DataFrame(y_array, columns=[outcomes[i] for i in range(len(outcomes))])
@@ -123,11 +134,7 @@ def split_data(df, test_size):
     print("Play Counts: ")
     print(y.value_counts())
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=None)
-    print("split_data: Data successfully split.")
-    print("X_train:", X_train.shape, "X_test", X_test.shape, "y_train", y_train.shape, "y_test", y_test.shape)
-
-    return X_train, X_test, y_train, y_test
+    return X, y
 
 
 def impute_values(df):
@@ -171,11 +178,14 @@ def perfect_model(model_name, model, X_train, y_train):
     print(grid_search.best_params_)
     return True
 
-def analyze_model(y_test, y_pred):
+def analyze_model(y_test, y_pred, kfold):
     # tests classification models
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred)
     print(f"Accuracy score: {accuracy}, F1 score: {f1}")
+    if kfold != 'y':
+        print("Classification Report:")
+        print(classification_report(y_test, y_pred))
 
     #print("Model score: ", model.score(X_test, y_test))
     #print("R-squared: ", r2_score(y_test, y_pred))
