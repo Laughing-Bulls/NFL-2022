@@ -5,13 +5,14 @@ import pandas as pd
 import pickle
 from datetime import datetime
 from operator import add
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, LabelBinarizer
+from sklearn.preprocessing import LabelBinarizer
 from sklearn.impute import KNNImputer
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import SelectPercentile
 from sklearn.feature_selection import f_regression
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
+from sklearn.naive_bayes import BernoulliNB
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -88,7 +89,7 @@ def construct_model(kfold_choice):
 def run_model(model_name, kfold_choice, X_train, X_test, y_train, y_test):
     # Train a model with selected machine learning algorithm
     if model_name == "SVM":
-        model = SVC()
+        model = SVC(C=10, gamma=0.01)
     if model_name == "Naive Bayes":
         model = GaussianNB()
     if model_name == "Decision Tree":
@@ -133,7 +134,6 @@ def split_xy(df):
     y = y_raw.replace(play_map)  # Make categories binary
     print("Play Counts: ")
     print(y.value_counts())
-
     return X, y
 
 
@@ -145,38 +145,31 @@ def impute_values(df):
 
 
 def select_features(X_train, X_test):
-
+    # Used for feature selection step; ultimately discarded
     print("Correlations: ")
     features = SelectPercentile(score_func=f_regression, percentile = 33)  # select bast features
     X_selected = features.fit(X_train, y_train)
     x = X_selected.get_support(indices=True)
-    print(x)
     column_names = list(X_train.columns.values)
-    print(column_names)
-    for each in x:
-        print(column_names[each])
-
-    # X_selected = fs.fit_transform(X_train, y_train)
-    # print(X_selected.shape)
-
-    return X_train, X_test, y_train, y_test
+    return column_names
 
 
 def perfect_model(model_name, model, X_train, y_train):
-    if model_name == "Ridge Regression":
-        params = [{'alpha': [1e-1, 0.5, 1, 5, 10],
-                   'copy_X': [True, False], 'tol': [0.01, 0.001, 0.0001]}]
-    if model_name == "Decision Tree Regression":
-        params = [{'splitter': ["best", "random"], 'max_depth': [1, 5, 8, 12],
-                   'min_samples_leaf': [2, 5, 7, 10], 'min_weight_fraction_leaf': [0.1, 0.3, 0.5],
-                   'max_features': ['auto', 'log2', 'sqrt', None],
-                   'max_leaf_nodes': [None, 25, 50, 70, 90]}]
-    grid_search = GridSearchCV(model, params, scoring='neg_mean_squared_error', cv=3,
-                               return_train_score=True)
+    # Use grid search to find optimized parameters
+    if model_name == "SVM":
+        params = [{'C': [0.001, 0.01, 0.1, 1, 10],
+                   'gamma': [0.001, 0.01, 0.1, 1]}]
+    if model_name == "Random Forest":
+        params = [{'max_depth': [20, 50, 100],
+                   'max_features': ['log2', 'sqrt', None],
+                   'min_samples_split': [2, 5, 8],
+                   'n_estimators': [100, 200, 400, 800]}]
+    grid_search = GridSearchCV(model, params, cv=3, return_train_score=True)
     grid_search.fit(X_train, y_train)
     print("The optimized parameters are: ")
     print(grid_search.best_params_)
     return True
+
 
 def analyze_model(y_test, y_pred, kfold):
     # tests classification models
@@ -186,25 +179,7 @@ def analyze_model(y_test, y_pred, kfold):
     if kfold != 'y':
         print("Classification Report:")
         print(classification_report(y_test, y_pred))
-
-    #print("Model score: ", model.score(X_test, y_test))
-    #print("R-squared: ", r2_score(y_test, y_pred))
-    #print("Mean Absolute Error: ", mean_absolute_error(y_test, y_pred))
-    #print("Root Mean Squared Error: ", np.sqrt(mean_squared_error(y_test, y_pred)))
-    #print("Explained Variance Score (test): ", explained_variance_score(y_test, y_pred))
-    #runplot(y_test, y_pred)
     return [accuracy, f1]
-
-
-def runplot(y_test, y_pred):
-    # plots graph of actual vs. predicted
-    fig, ax = plt.subplots()
-    ax.scatter(y_pred, y_test, edgecolors=(0, 0, 1))
-    ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=3)
-    ax.set_xlabel('Predicted')
-    ax.set_ylabel('Actual')
-    plt.show()
-    return True
 
 
 def save_model(choice, model):
@@ -213,5 +188,5 @@ def save_model(choice, model):
     yes = input("Save this model? (y/n)")
     if yes == "y":
         pickle.dump(model, open(path + filename, 'wb'))
-        print(choice, " : Model has been saved as saved_model.sav")
+        print(f"{choice}: Model has been saved as {choice}_saved_model.sav")
     return True
