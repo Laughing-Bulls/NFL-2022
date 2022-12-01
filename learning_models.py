@@ -95,7 +95,7 @@ def run_model(model_name, kfold_choice, X_train, X_test, y_train, y_test):
     if model_name == "Decision Tree":
         model = DecisionTreeClassifier()
     if model_name == "Random Forest":
-        model = RandomForestClassifier()
+        model = RandomForestClassifier(max_depth=20, max_features=sqrt, min_samples_split=8, n_estimators=200)
 
     starttime = datetime.now()
     model.fit(X_train, y_train)
