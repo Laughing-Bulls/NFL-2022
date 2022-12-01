@@ -1,10 +1,7 @@
-# This program uses saved models to supply predicted answers given provided inputs.
+# This program uses saved ML models to supply predictions, given provided inputs.
 import numpy as np
 import pandas as pd
 import pickle
-from data_transformation import transform
-from data_transformation import scale_values
-from data_transformation import label_code
 from learning_models import split_xy
 
 
@@ -26,45 +23,47 @@ def read_ml_models():
 
 def predict_outcome():
     # Calculates the predicted score, based on saved ML models
-    SVMmodel, RFmodel = read_ml_models()
+    SVMmodel, RFmodel = read_ml_models()    # get saved models
     print("predict_outcome: The model outputs are from the currently saved models.")
-    model_inputs = play_data()
-    count = 1
-    for index, row in model_inputs:
-        print(index)
-        print(count)
-        print(row)
+    model_inputs, outcomes = play_data()
+    predictions1 = SVMmodel.predict(model_inputs)   # generate SVM predictions
+    predictions2 = RFmodel.predict(model_inputs)    # generate Random Forest predictions
 
-        prediction1 = 0
-        prediction2 = 0
-        #prediction1 = model1.predict(model_inputs)
+    count1 = 0  # keep track of how many predictions each model gets right
+    count2 = 0
+    for index in range(len(model_inputs)):  # iterate through predictions
+        actual = outcomes[index]
+        prediction1 = predictions1[index]
+        prediction2 = predictions2[index]
+
         if prediction1 == 1:
             outcome1 = "SUCCESSFUL PLAY"
         else:
             outcome1 = "Unsuccessful play"
-        print(f"For play {count}, the SVM model predicts: {outcome1}")
 
-        #prediction2 = model1.predict(model_inputs)
+        print(f"For play {index}, the SVM model predicts: {prediction1} {outcome1}")
+        if prediction1 == actual:
+            count1 +=1
+
         if prediction2 == 1:
             outcome2 = "SUCCESSFUL PLAY"
         else:
             outcome2 = "Unsuccessful play"
-        print(f"For play {count}, the Random Forest model predicts: {outcome2}")
+        print(f"For play {index}, the Random Forest model predicts: {prediction2} {outcome2}")
+        if prediction2 == actual:
+            count2 +=1
 
-        actual = model_inputs.at[count, 'passResult']
         print(f"The actual outcome was: {actual}")
         print()
 
-        count += 1
-
+    print(f"Of {len(model_inputs)} plays, SVM got {count1} correct and Random Forest got {count2} correct")
     return True
 
 
 def play_data():
-    # obtains inputted plays to evaluate and processes the data
+    # Obtains inputted plays to evaluate
     plays = read_play_data()
-    processed_plays = transform(plays)
-    X, y = split_xy(processed_plays)
-    print("predict_outcome: The actual outcomes were: ", plays['passResult'])
-    print(X)
-    return X
+    X, y = split_xy(plays)
+    print("predict_outcome: The actual outcomes were: ")
+    print(plays['passResult'])
+    return X, y
